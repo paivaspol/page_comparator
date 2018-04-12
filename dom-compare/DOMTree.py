@@ -1,69 +1,113 @@
 from collections import deque, defaultdict
-from DOMNode import DOMNode
+from DOMNode import DOMNode, ConstructDOMNodeObj
 
 import json
+
+# Skip these tags.
+TAGS_TO_SKIP = { 'head', '#comment', '#text', 'noscript' }
 
 class DOMTree(object):
     '''
     Represents a DOM tree. Each DOM Node is represented by the DOMNode object. 
     '''
-    if __init__(self, dom_json):
+    def __init__(self, dom_json, for_hdp=False):
         '''
         Initializes the DOM tree.
         Params:
             dom_rep: (string) array of objects representing the DOMNode object.
         '''
+        if for_hdp:
+            TAGS_TO_SKIP.add('script')
+            
 
         # self.tree holds the tree structure in the adjacency list form
         # the key is the id of the parent and the list are ids the children nodes
         #
         # The root_node_id
-        self.tree, self.root_node_id = ConstructDOMTree(dom_json)
+        self.tree, self.root_node, self.size, self._nodes_set = ConstructDOMTree(dom_json, for_hdp)
+
+        self.children = deque([ self.root_node ])
 
 
-def ConstructDOMTree(root_node_dom_json):
+    def Contains(self, node):
+        '''
+        Returns whether the given node exists in this tree.
+        '''
+        return node in self._nodes_set
+
+
+    def GetChildren(self, node_id):
+        '''
+        Returns the children of the given node_id.
+        '''
+        if node_id not in self.tree:
+            return []
+        return self.tree[node_id]
+
+
+    ############################################
+    # Iterator implementation
+    ############################################
+    def __iter__(self):
+        return self
+
+    def next(self):
+        '''
+        Returns the next node in the breadth-first order.
+        '''
+        if len(self.children) == 0:
+            # Nothing left to iterate over.
+            raise StopIteration
+        node = self.children.popleft()
+        # Add more children
+        if node.id in self.tree:
+            self.children.extend(self.tree[node.id])
+        return node
+
+
+def ConstructDOMTree(root_node_dom_json, for_hdp):
     '''
     Returns the DOM tree and the ID of the root node.
     '''
     tree = defaultdict(list)
-    children = deque([ dom_json ])
+    children = deque([ root_node_dom_json ])
+    node_count = 0
+    root_node = None
+    node_set = set()
     while len(children) > 0:
         # Perform BFS on the DOM tree.
         cur_node_json = children.popleft()
-        cur_node = ConstructDOMNodeObj(cur_node_json)
+        cur_node = ConstructDOMNodeObj(cur_node_json, for_hdp)
 
-        # Set the root node id, if necessary.
-        if root_node_id == -1:
-            root_node_id = cur_node.id
+        # In HDP, we want to ignore all nodes that are not visible.
+        if ShouldSkipNode(cur_node, for_hdp):
+            continue
+
+        # Start processing this node.
+        node_count += 1
+
+        if root_node is None:
+            root_node = cur_node
+
+        if 'children' in cur_node_json:
+            # Add all the children.
+            children.extend(cur_node_json['children'])
+
+        node_set.add(cur_node)
 
         # Populate the tree structure.
         if 'parentId' not in cur_node_json:
             # This is the root node. Don't put it in.
             continue
 
-        tree[cur_node_json['parentId']].append(cur_node.id)
+        tree[cur_node_json['parentId']].append(cur_node)
 
-        if 'children' in cur_node:
-            # Add all the children.
-            children.extend(cur_node['children'])
-    return tree, root_node_id
+    return tree, root_node, node_count, node_set
 
 
-def ConstructDOMNodeObj(dom_json):
+def ShouldSkipNode(node, for_hdp):
     '''
-    Constructs the DOM Node object
-
+    Returns whether the given node should be skipped based on the tag name or 
+    the visibility of the node.
     '''
-    attrs = SerializeAttributes(dom_json['attributes']) if 'attributes' in dom_json else {}
-    return DOMNode(dom_json['nodeId'], dom_json['nodeName'], dom_json['nodeValue'], attrs)
-
-
-def SerializeAttributes(attributes):
-    '''
-    Returns a map of attributes from the array representation: [ key_1, val_1, key_2, val_2, ..., key_n, val_n ]
-    '''
-    attrs = {}
-    for i in range(0, len(attributes), 2):
-        key = attributes[i]
-        val = attributes[i + 1]
-    return attrs
+    return node.type in TAGS_TO_SKIP or (for_hdp and not node.IsVisible())
