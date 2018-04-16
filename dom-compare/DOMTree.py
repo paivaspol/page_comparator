@@ -4,7 +4,7 @@ from DOMNode import DOMNode, ConstructDOMNodeObj
 import json
 
 # Skip these tags.
-TAGS_TO_SKIP = { 'head', '#comment', '#text', 'noscript' }
+TAGS_TO_SKIP = { '#comment', '#text' }
 
 class DOMTree(object):
     '''
@@ -18,7 +18,6 @@ class DOMTree(object):
         '''
         if for_hdp:
             TAGS_TO_SKIP.add('script')
-            
 
         # self.tree holds the tree structure in the adjacency list form
         # the key is the id of the parent and the list are ids the children nodes
@@ -43,6 +42,44 @@ class DOMTree(object):
         if node_id not in self.tree:
             return []
         return self.tree[node_id]
+
+
+    def AddNode(self, parent_id, node):
+        '''
+        Adds a node to the DOM tree.
+
+        Params:
+            parent_id: the id of the parent.
+            node: the node object to be added.
+        '''
+        if self.size == 0:
+            # The tree is empty assume that this is the root node.
+            self.root_node = node
+            self.children = deque([ self.root_node ])
+            self.size += 1
+            return
+        # Populate the tree.
+        self.tree[parent_id].append(node)
+        self.size += 1
+
+
+    def Serialize(self):
+        '''
+        Serializes the tree into dictionary so that it can be serialized into JSON.
+        '''
+        return self.serialize_helper(self.root_node)
+
+
+    def serialize_helper(self, cur_node):
+        '''
+        Recursive helper method for serializing the tree.
+        '''
+        serialized_cur_node = cur_node.Serialize()
+        if cur_node.id in self.tree:
+            children = self.tree[cur_node.id]
+            for child in children:
+                serialized_cur_node['children'].append(self.serialize_helper(child))
+        return serialized_cur_node
 
 
     ############################################
@@ -70,11 +107,13 @@ def ConstructDOMTree(root_node_dom_json, for_hdp):
     Returns the DOM tree and the ID of the root node.
     '''
     tree = defaultdict(list)
-    children = deque([ root_node_dom_json ])
     node_count = 0
     root_node = None
     node_set = set()
-    while len(children) > 0:
+    needs_processing = len(root_node_dom_json) > 0
+    children = deque([ root_node_dom_json ])
+
+    while needs_processing and len(children) > 0:
         # Perform BFS on the DOM tree.
         cur_node_json = children.popleft()
         cur_node = ConstructDOMNodeObj(cur_node_json, for_hdp)

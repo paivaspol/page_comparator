@@ -16,5 +16,14 @@ class TestDOMTree(unittest.TestCase):
             self.assertEqual(node_ids[i], n.id)
 
 
+    def test_empty_tree(self):
+        '''
+        Test the degenerate case of empty tree.
+        '''
+        dom_json = json.loads('{}')
+        tree = DOMTree(dom_json)
+        self.assertEqual(0, tree.size)
+
+
 if __name__ == '__main__':
     unittest.main()

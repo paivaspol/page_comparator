@@ -1,8 +1,16 @@
+# JSON Key Constants
+NODE_ID = 'nodeId'
+NODE_NAME = 'nodeName'
+NODE_VALUE = 'nodeValue'
+NODE_CHILDREN = 'children'
+NODE_ATTRIBUTES = 'attributes'
+NODE_PARENT_ID = 'parentId'
+
 class DOMNode(object):
     '''
     Represents a DOM Node. It holds the node's ID, type, value, and attributes.
     '''
-    def __init__(self, node_id, node_type, value, attributes):
+    def __init__(self, node_id, node_type, value, attributes, parent_id):
         '''
         Initializes the DOM node.
         Params:
@@ -15,6 +23,7 @@ class DOMNode(object):
         self.type = node_type.lower()
         self.value = value
         self.attributes = attributes
+        self.parent_id = parent_id
 
 
     def IsVisible(self):
@@ -40,7 +49,7 @@ class DOMNode(object):
         '''
         Returns whether the tag matches. This is to just compare the structure of the page.
         '''
-        return self.type == other.type and self.CompareAttrs(other)
+        return self.type == other.type and self.CompareAttrs(other, structure_only=True)
 
 
     def ComputeStructureHash(self):
@@ -51,23 +60,24 @@ class DOMNode(object):
         return hash(self.type) + attrs_hash
 
 
-    def CompareAttrs(self, other):
+    def CompareAttrs(self, other, structure_only=False):
         '''
         Returns whether self.attributes == other.attributes.
 
         The special case is the class attribute where the values can be reordered.
         '''
+        structure_only_keys = { 'class', 'id' }
         if len(self.attributes) != len(other.attributes):
             return False
         
         # The keys do not match
-        self.attr_keys = self.attributes.keys()
-        other.attr_keys = other.attributes.keys()
+        self_attr_keys = { x for x in self.attributes.keys() if (not structure_only) or (structure_only and x in structure_only_keys) }
+        other_attr_keys = { x for x in other.attributes.keys() if (not structure_only) or (structure_only and x in structure_only_keys) }
 
-        if self.attr_keys != other.attr_keys:
+        if self_attr_keys != other_attr_keys:
             return False
 
-        for k in self.attributes.keys():
+        for k in self_attr_keys:
             if k == 'class':
                 # Skip checking for class attribute.
                 continue
@@ -92,6 +102,24 @@ class DOMNode(object):
                 return False
 
         return True
+
+
+    def Serialize(self):
+        '''
+        Returns a map representation of this DOM node object with
+        children as empty.
+        '''
+        result = {}
+        result[NODE_ID] = self.id
+        result[NODE_NAME] = self.type
+        result[NODE_VALUE] = self.value
+        result[NODE_PARENT_ID] = self.parent_id
+        result[NODE_ATTRIBUTES] = []
+        for k, v in self.attributes.iteritems():
+            result[NODE_ATTRIBUTES].append(k)
+            result[NODE_ATTRIBUTES].append(v)
+        result[NODE_CHILDREN] = []
+        return result
 
 
     def __hash__(self):
@@ -136,15 +164,16 @@ class DOMNode(object):
 
 
 def ConstructDOMNodeObj(dom_json, for_hdp=False):
-    attrs = SerializeAttributes(dom_json['attributes'], for_hdp) if 'attributes' in dom_json else {}
+    attrs = SerializeAttributes(dom_json[NODE_ATTRIBUTES], for_hdp) if NODE_ATTRIBUTES in dom_json else {}
     value = ''
-    if 'children' in dom_json and len(dom_json['children']) == 1 and dom_json['children'][0]['nodeName'].lower() == '#text':
-        value = dom_json['children'][0]['nodeValue']
+    if NODE_CHILDREN in dom_json and len(dom_json[NODE_CHILDREN]) == 1 and dom_json[NODE_CHILDREN][0][NODE_NAME].lower() == '#text':
+        # TODO(vaspol) can this contain multiple adjacent text nodes?
+        value = dom_json[NODE_CHILDREN][0][NODE_VALUE]
         
         # Remove the children nodes, since we already embed this info in the parent node.
-        del dom_json['children']
-
-    return DOMNode(dom_json['nodeId'], dom_json['nodeName'], value, attrs)
+        del dom_json[NODE_CHILDREN]
+    parent_id = -1 if NODE_PARENT_ID not in dom_json else dom_json[NODE_PARENT_ID]
+    return DOMNode(dom_json[NODE_ID], dom_json[NODE_NAME], value, attrs, parent_id)
 
 
 def SerializeAttributes(attributes, for_hdp):

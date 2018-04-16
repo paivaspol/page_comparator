@@ -3,6 +3,7 @@ from collections import deque
 from DOMNode import DOMNode, ConstructDOMNodeObj
 from DOMTree import DOMTree
 
+import json
 import utils
 
 def Main():
@@ -17,30 +18,32 @@ def Main():
     queued_testing_common_nodes = deque([ testing_dom.root_node ])
     
     # Check root_node. degenerative case:
-    if dom_b.root_node != dom_a.root_node:
+    if correct_dom.root_node != testing_dom.root_node:
         print 'NOTHING MATCHED!'
 
-    common_nodes_count = 0
+    # Populate the root node.
+    common_dom_tree = DOMTree({})
+    common_dom_tree.AddNode(-1, correct_dom.root_node)
     while len(queued_correct_common_nodes) > 0 and len(queued_testing_common_nodes) > 0:
         correct_front = queued_correct_common_nodes.popleft()
-        # print 'CorrectFront ID: ' + str(correct_front.id)
         correct_nodes_children = correct_dom.GetChildren(correct_front.id)
 
         testing_front = queued_testing_common_nodes.popleft()
-        # print 'TestingFront ID: ' + str(testing_front.id)
         testing_nodes_children = testing_dom.GetChildren(testing_front.id)
 
         if args.debug:
-            print 'TESTING:'
-            PrintNodeList(correct_nodes_children)
-            PrintNodeList(testing_nodes_children)
+            print 'COMPARING:'
+            print '\tcorrect'
+            PrintNodeList(correct_nodes_children, indent='\t')
+            print '\ttesting'
+            PrintNodeList(testing_nodes_children, indent='\t')
 
-        # print 'before LCS queued: ' 
-        # PrintNodeList(queued_correct_common_nodes)
-
-        correct_common_nodes, testing_common_nodes = FindCommonNodes(correct_nodes_children, testing_nodes_children)
+        correct_common_nodes, testing_common_nodes = FindCommonNodes(correct_nodes_children, testing_nodes_children, args.debug)
         queued_correct_common_nodes.extend(correct_common_nodes)
         queued_testing_common_nodes.extend(testing_common_nodes)
+
+        for n in correct_common_nodes:
+            common_dom_tree.AddNode(correct_front.id, n)
 
         if args.debug:
             print 'correct: ' + str(len(correct_common_nodes))
@@ -51,14 +54,15 @@ def Main():
         
         if None in correct_common_nodes:
             break
+    print '{0} {1}'.format(common_dom_tree.size, dom_a.size)
+    if args.dump_common_tree is not None:
+        with open(args.dump_common_tree, 'w') as output_file:
+            output_file.write(json.dumps({ 'result': { 'root': common_dom_tree.Serialize() } }))
 
-        common_nodes_count += len(correct_common_nodes)
-    print '{0} {1}'.format(common_nodes_count, dom_a.size)
 
-
-def PrintNodeList(node_list):
+def PrintNodeList(node_list, indent=''):
     for n in node_list:
-        print str(n)
+        print indent + str(n)
     
 
 def FindCommonNodes(correct_nodes, testing_nodes, debug=False):
@@ -159,6 +163,7 @@ if __name__ == '__main__':
     parser.add_argument('dom_tree_b')
     parser.add_argument('--hdp', default=False, action='store_true')
     parser.add_argument('--only-structure', default=False, action='store_true')
+    parser.add_argument('--dump-common-tree', default=None)
     parser.add_argument('--debug', default=False, action='store_true')
     args = parser.parse_args()
     Main()
