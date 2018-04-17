@@ -81,11 +81,12 @@ def FindCommonNodes(correct_nodes, testing_nodes, debug=False):
     Returns the longest commond DOM nodes for this level and the diffs of the nodes.
     '''
     c = SetupLCS(correct_nodes, testing_nodes, debug)
-    correct_common_nodes, testing_common_nodes = GetCommonNodes(c, correct_nodes, testing_nodes, debug)
-    missing_nodes = []
-    if len(correct_common_nodes) > 0:
-        # Find the missing nodes when there are common nodes.
-        GetMissingNodes(c, correct_nodes, testing_nodes, len(correct_nodes) - 1, len(testing_nodes) - 1, missing_nodes, debug)
+    correct_common_nodes = deque()
+    testing_common_nodes = deque()
+    missing_nodes = deque()
+
+    # Find the missing nodes when there are common nodes.
+    GetCommonAndMissingNodes(c, correct_nodes, testing_nodes, len(correct_nodes) - 1, len(testing_nodes) - 1, correct_common_nodes, testing_common_nodes, missing_nodes, debug)
     return correct_common_nodes, testing_common_nodes, missing_nodes
 
 
@@ -97,12 +98,18 @@ def SetupLCS(correct_nodes, testing_nodes, debug):
     c = [[ 0 for x in range(len(testing_nodes) + 1) ] for y in range(len(correct_nodes) + 1) ]
 
     # Compute LCS
+    # for i, correct_node in enumerate(correct_nodes):
+    #     for j, testing_node in enumerate(testing_nodes):
+    #         if NodesEqual(correct_node, testing_node):
+    #             c[i + 1][j + 1] = c[i][j] + 1
+    #         else:
+    #             c[i + 1][j + 1] = max(c[i + 1][j], c[i][j + 1])
     for i, correct_node in enumerate(correct_nodes):
         for j, testing_node in enumerate(testing_nodes):
             if NodesEqual(correct_node, testing_node):
-                c[i + 1][j + 1] = c[i][j] + 1
+                c[i][j] = c[i - 1][j - 1] + 1
             else:
-                c[i + 1][j + 1] = max(c[i + 1][j], c[i][j + 1])
+                c[i][j] = max(c[i][j - 1], c[i - 1][j])
     
     if debug:
         PrintLCSArray(c)
@@ -118,50 +125,28 @@ def PrintLCSArray(c):
         print line
 
 
-def GetCommonNodes(lcs_arr, correct_nodes, testing_nodes, debug):
-    '''
-    Returns the common nodes between correct_nodes and testing_nodes.
-    '''
-    if debug:
-        # print '[LCS] Correct'
-        # PrintNodeList(correct_nodes)
-        # print '[LCS] Testing'
-        # PrintNodeList(testing_nodes)
-        pass
-
-    correct_common_nodes = deque()
-    testing_common_nodes = deque()
-    i = len(correct_nodes)
-    j = len(testing_nodes)
-    while i > 0 and j > 0:
-        if lcs_arr[i][j] == lcs_arr[i - 1][j]:
-            i -= 1
-        elif lcs_arr[i][j] == lcs_arr[i][j - 1]:
-            j -= 1
-        else:
-            # These two nodes are the same.
-            correct_common_nodes.appendleft(correct_nodes[i - 1])
-            testing_common_nodes.appendleft(testing_nodes[j - 1])
-            i -= 1
-            j -= 1
-
-    return correct_common_nodes, testing_common_nodes
-
-
-def GetMissingNodes(lcs_arr, correct_nodes, testing_nodes, i, j, missing_nodes, debug):
+def GetCommonAndMissingNodes(lcs_arr, correct_nodes, testing_nodes, i, j, correct_common_nodes, testing_common_nodes, missing_nodes, debug):
     '''
     Returns the nodes that are missing from the correct nodes.
     '''
-    # print 'i: {0} j: {1}'.format(i, j)
-    if i >= 0 and j >= 0 and NodesEqual(correct_nodes[i], testing_nodes[j]):
-        # print 'here'
-        GetMissingNodes(lcs_arr, correct_nodes, testing_nodes, i - 1, j - 1, missing_nodes, debug)
-    elif j > 0 and (i == 0 or lcs_arr[i][j - 1] >= lcs_arr[i - 1][j]):
-        GetMissingNodes(lcs_arr, correct_nodes, testing_nodes, i, j - 1, missing_nodes, debug)
-    elif i > 0 and (j == 0 or lcs_arr[i][j - 1] < lcs_arr[i - 1][j]):
-        # Add into the missing nodes.
-        missing_nodes.append(correct_nodes[i])
-        GetMissingNodes(lcs_arr, correct_nodes, testing_nodes, i - 1, j, missing_nodes, debug)
+    if i < 0 and j < 0:
+        pass
+    elif i < 0:
+        # print_diff(c, x, y, i, j-1)
+        GetCommonAndMissingNodes(lcs_arr, correct_nodes, testing_nodes, i, j - 1, correct_common_nodes, testing_common_nodes, missing_nodes, debug)
+    elif j < 0:
+        missing_nodes.appendleft(correct_nodes[i])
+        GetCommonAndMissingNodes(lcs_arr, correct_nodes, testing_nodes, i - 1, j, correct_common_nodes, testing_common_nodes,  missing_nodes, debug)
+    elif NodesEqual(correct_nodes[i], testing_nodes[j]):
+        correct_common_nodes.appendleft(correct_nodes[i])
+        testing_common_nodes.appendleft(testing_nodes[j])
+        GetCommonAndMissingNodes(lcs_arr, correct_nodes, testing_nodes, i - 1, j - 1, correct_common_nodes, testing_common_nodes, missing_nodes, debug)
+    elif lcs_arr[i][j-1] >= lcs_arr[i-1][j]:
+        GetCommonAndMissingNodes(lcs_arr, correct_nodes, testing_nodes, i, j - 1, correct_common_nodes, testing_common_nodes, missing_nodes, debug)
+        # print("+ " + y[j])
+    elif lcs_arr[i][j-1] < lcs_arr[i-1][j]:
+        missing_nodes.appendleft(correct_nodes[i])
+        GetCommonAndMissingNodes(lcs_arr, correct_nodes, testing_nodes, i - 1, j, correct_common_nodes, testing_common_nodes, missing_nodes, debug)
 
 
 def NodesEqual(node_a, node_b):
