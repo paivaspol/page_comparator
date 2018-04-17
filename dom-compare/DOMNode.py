@@ -10,7 +10,7 @@ class DOMNode(object):
     '''
     Represents a DOM Node. It holds the node's ID, type, value, and attributes.
     '''
-    def __init__(self, node_id, node_type, value, attributes, parent_id):
+    def __init__(self, node_id, node_type, value, attributes, parent_id, signature):
         '''
         Initializes the DOM node.
         Params:
@@ -18,12 +18,15 @@ class DOMNode(object):
             node_type: (string) The string representation of the node.
             value: (string) The value of the node. If this node contains a #text node, it will be populated in the value property.
             attributes: (map<string,string>) Attributes of this node.
+            parent_id: (int) The ID of the parent of this node.
+            signature: (string) the signature of this node.
         '''
         self.id = node_id
         self.type = node_type.lower()
         self.value = value
         self.attributes = attributes
         self.parent_id = parent_id
+        self.signature = signature
 
 
     def IsVisible(self):
@@ -164,7 +167,7 @@ class DOMNode(object):
         '''.format(self.type, self.id, self.parent_id, self.value.encode('utf-8'), self.attributes).strip() + '\n'
 
 
-def ConstructDOMNodeObj(dom_json, for_hdp=False):
+def ConstructDOMNodeObj(dom_json, node_signature, for_hdp=False):
     attrs = SerializeAttributes(dom_json[NODE_ATTRIBUTES], for_hdp) if NODE_ATTRIBUTES in dom_json else {}
     value = ''
     if NODE_CHILDREN in dom_json and len(dom_json[NODE_CHILDREN]) == 1 and dom_json[NODE_CHILDREN][0][NODE_NAME].lower() == '#text':
@@ -174,7 +177,16 @@ def ConstructDOMNodeObj(dom_json, for_hdp=False):
         # Remove the children nodes, since we already embed this info in the parent node.
         del dom_json[NODE_CHILDREN]
     parent_id = -1 if NODE_PARENT_ID not in dom_json else dom_json[NODE_PARENT_ID]
-    return DOMNode(dom_json[NODE_ID], dom_json[NODE_NAME], value, attrs, parent_id)
+    return DOMNode(dom_json[NODE_ID], dom_json[NODE_NAME], value, attrs, parent_id, node_signature)
+
+
+def ConstructSignature(node_json):
+    '''
+    Returns a string that represents the signature of this node.
+
+    The signature of a node is defined is <[type]>\[attributes\].
+    '''
+    return '<{0}>{1}'.format(node_json[NODE_NAME], str(node_json[NODE_ATTRIBUTES]))
 
 
 def SerializeAttributes(attributes, for_hdp):

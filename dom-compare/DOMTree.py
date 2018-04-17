@@ -1,5 +1,5 @@
 from collections import deque, defaultdict
-from DOMNode import DOMNode, ConstructDOMNodeObj
+from DOMNode import DOMNode, ConstructDOMNodeObj, ConstructSignature
 
 import json
 
@@ -112,11 +112,15 @@ def ConstructDOMTree(root_node_dom_json, for_hdp):
     node_set = set()
     needs_processing = len(root_node_dom_json) > 0
     children = deque([ root_node_dom_json ])
+    node_signature_map = defaultdict(lambda: '')
 
     while needs_processing and len(children) > 0:
         # Perform BFS on the DOM tree.
         cur_node_json = children.popleft()
-        cur_node = ConstructDOMNodeObj(cur_node_json, for_hdp)
+        parent_signature = node_signature_map[cur_node_json['parentId']] if 'parentId' in cur_node_json else ''
+        # Node signatures are delimited by ;
+        node_signature = parent_signature + ConstructSignature(cur_node_json) + ';'
+        cur_node = ConstructDOMNodeObj(cur_node_json, node_signature, for_hdp)
 
         # In HDP, we want to ignore all nodes that are not visible.
         if ShouldSkipNode(cur_node, for_hdp):
