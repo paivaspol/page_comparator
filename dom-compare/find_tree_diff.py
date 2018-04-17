@@ -65,7 +65,7 @@ def Main():
     if args.dump_missing_nodes is not None:
         with open(args.dump_missing_nodes, 'w') as output_file:
             for n in all_missing_nodes:
-                output_file.write(str(n) + '\n\n')
+                output_file.write(n.signature + '\n')
 
 
 def PrintNodeList(node_list, indent=''):

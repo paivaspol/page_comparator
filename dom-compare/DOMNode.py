@@ -164,7 +164,8 @@ class DOMNode(object):
             parent_id: {2}
             value: {3}
             attrs: {4}
-        '''.format(self.type, self.id, self.parent_id, self.value.encode('utf-8'), self.attributes).strip() + '\n'
+            signature: {5}
+        '''.format(self.type, self.id, self.parent_id, self.value.encode('utf-8'), self.attributes, self.signature).strip() + '\n'
 
 
 def ConstructDOMNodeObj(dom_json, node_signature, for_hdp=False):
@@ -186,7 +187,7 @@ def ConstructSignature(node_json):
 
     The signature of a node is defined is <[type]>\[attributes\].
     '''
-    return '<{0}>{1}'.format(node_json[NODE_NAME], str(node_json[NODE_ATTRIBUTES]))
+    return '<{0}>{1}'.format(node_json[NODE_NAME], str(node_json[NODE_ATTRIBUTES] if NODE_ATTRIBUTES in node_json else []))
 
 
 def SerializeAttributes(attributes, for_hdp):

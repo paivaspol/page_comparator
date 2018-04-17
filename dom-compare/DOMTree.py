@@ -6,6 +6,8 @@ import json
 # Skip these tags.
 TAGS_TO_SKIP = { '#comment', '#text' }
 
+SIGNATURE_DELIM = '|$de|'
+
 class DOMTree(object):
     '''
     Represents a DOM tree. Each DOM Node is represented by the DOMNode object. 
@@ -117,10 +119,13 @@ def ConstructDOMTree(root_node_dom_json, for_hdp):
     while needs_processing and len(children) > 0:
         # Perform BFS on the DOM tree.
         cur_node_json = children.popleft()
-        parent_signature = node_signature_map[cur_node_json['parentId']] if 'parentId' in cur_node_json else ''
-        # Node signatures are delimited by ;
-        node_signature = parent_signature + ConstructSignature(cur_node_json) + ';'
+        parent_signature = ''
+        if 'parentId' in cur_node_json:
+            parent_signature = node_signature_map[cur_node_json['parentId']]
+        # Node signatures are delimited by SIGNATURE_DELIM
+        node_signature = parent_signature + ConstructSignature(cur_node_json) + SIGNATURE_DELIM
         cur_node = ConstructDOMNodeObj(cur_node_json, node_signature, for_hdp)
+        node_signature_map[cur_node.id] = cur_node.signature
 
         # In HDP, we want to ignore all nodes that are not visible.
         if ShouldSkipNode(cur_node, for_hdp):
