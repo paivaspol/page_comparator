@@ -24,6 +24,7 @@ def Main():
     # Populate the root node.
     common_dom_tree = DOMTree({})
     common_dom_tree.AddNode(-1, correct_dom.root_node)
+    all_missing_nodes = []
     while len(queued_correct_common_nodes) > 0 and len(queued_testing_common_nodes) > 0:
         correct_front = queued_correct_common_nodes.popleft()
         correct_nodes_children = correct_dom.GetChildren(correct_front.id)
@@ -33,24 +34,26 @@ def Main():
 
         if args.debug:
             print 'COMPARING:'
-            print '\tcorrect'
+            print '\tcorrect: ' + str(len(correct_nodes_children))
             PrintNodeList(correct_nodes_children, indent='\t')
-            print '\ttesting'
+            print '\ttesting: ' + str(len(testing_nodes_children))
             PrintNodeList(testing_nodes_children, indent='\t')
 
-        correct_common_nodes, testing_common_nodes = FindCommonNodes(correct_nodes_children, testing_nodes_children, args.debug)
+        correct_common_nodes, testing_common_nodes, missing_nodes = FindCommonNodes(correct_nodes_children, testing_nodes_children, args.debug)
         queued_correct_common_nodes.extend(correct_common_nodes)
         queued_testing_common_nodes.extend(testing_common_nodes)
+        all_missing_nodes.extend(missing_nodes)
 
         for n in correct_common_nodes:
             common_dom_tree.AddNode(correct_front.id, n)
 
         if args.debug:
-            print 'correct: ' + str(len(correct_common_nodes))
-            PrintNodeList(correct_common_nodes)
-            print 'queued: ' 
-            PrintNodeList(queued_correct_common_nodes)
-            print '================================================='
+            # print 'correct: ' + str(len(correct_common_nodes))
+            # PrintNodeList(correct_common_nodes)
+            # print 'queued: ' 
+            # PrintNodeList(queued_correct_common_nodes)
+            # print '================================================='
+            pass
         
         if None in correct_common_nodes:
             break
@@ -59,11 +62,16 @@ def Main():
         with open(args.dump_common_tree, 'w') as output_file:
             output_file.write(json.dumps({ 'result': { 'root': common_dom_tree.Serialize() } }))
 
+    if args.dump_missing_nodes is not None:
+        with open(args.dump_missing_nodes, 'w') as output_file:
+            for n in all_missing_nodes:
+                output_file.write(str(n) + '\n\n')
+
 
 def PrintNodeList(node_list, indent=''):
     for n in node_list:
         print indent + str(n)
-    
+
 
 def FindCommonNodes(correct_nodes, testing_nodes, debug=False):
     '''
@@ -74,7 +82,11 @@ def FindCommonNodes(correct_nodes, testing_nodes, debug=False):
     '''
     c = SetupLCS(correct_nodes, testing_nodes, debug)
     correct_common_nodes, testing_common_nodes = GetCommonNodes(c, correct_nodes, testing_nodes, debug)
-    return correct_common_nodes, testing_common_nodes
+    missing_nodes = []
+    if len(correct_common_nodes) > 0:
+        # Find the missing nodes when there are common nodes.
+        GetMissingNodes(c, correct_nodes, testing_nodes, len(correct_nodes) - 1, len(testing_nodes) - 1, missing_nodes, debug)
+    return correct_common_nodes, testing_common_nodes, missing_nodes
 
 
 def SetupLCS(correct_nodes, testing_nodes, debug):
@@ -111,10 +123,11 @@ def GetCommonNodes(lcs_arr, correct_nodes, testing_nodes, debug):
     Returns the common nodes between correct_nodes and testing_nodes.
     '''
     if debug:
-        print '[LCS] Correct'
-        PrintNodeList(correct_nodes)
-        print '[LCS] Testing'
-        PrintNodeList(testing_nodes)
+        # print '[LCS] Correct'
+        # PrintNodeList(correct_nodes)
+        # print '[LCS] Testing'
+        # PrintNodeList(testing_nodes)
+        pass
 
     correct_common_nodes = deque()
     testing_common_nodes = deque()
@@ -133,6 +146,22 @@ def GetCommonNodes(lcs_arr, correct_nodes, testing_nodes, debug):
             j -= 1
 
     return correct_common_nodes, testing_common_nodes
+
+
+def GetMissingNodes(lcs_arr, correct_nodes, testing_nodes, i, j, missing_nodes, debug):
+    '''
+    Returns the nodes that are missing from the correct nodes.
+    '''
+    # print 'i: {0} j: {1}'.format(i, j)
+    if i >= 0 and j >= 0 and NodesEqual(correct_nodes[i], testing_nodes[j]):
+        # print 'here'
+        GetMissingNodes(lcs_arr, correct_nodes, testing_nodes, i - 1, j - 1, missing_nodes, debug)
+    elif j > 0 and (i == 0 or lcs_arr[i][j - 1] >= lcs_arr[i - 1][j]):
+        GetMissingNodes(lcs_arr, correct_nodes, testing_nodes, i, j - 1, missing_nodes, debug)
+    elif i > 0 and (j == 0 or lcs_arr[i][j - 1] < lcs_arr[i - 1][j]):
+        # Add into the missing nodes.
+        missing_nodes.append(correct_nodes[i])
+        GetMissingNodes(lcs_arr, correct_nodes, testing_nodes, i - 1, j, missing_nodes, debug)
 
 
 def NodesEqual(node_a, node_b):
@@ -164,6 +193,7 @@ if __name__ == '__main__':
     parser.add_argument('--hdp', default=False, action='store_true')
     parser.add_argument('--only-structure', default=False, action='store_true')
     parser.add_argument('--dump-common-tree', default=None)
+    parser.add_argument('--dump-missing-nodes', default=None)
     parser.add_argument('--debug', default=False, action='store_true')
     args = parser.parse_args()
     Main()
