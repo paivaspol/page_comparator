@@ -158,9 +158,10 @@ class DOMNode(object):
         return '''
         Node: <{0}>
             id: {1}
-            value: {2}
-            attrs: {3}
-        '''.format(self.type, self.id, self.value.encode('utf-8'), self.attributes).strip() + '\n'
+            parent_id: {2}
+            value: {3}
+            attrs: {4}
+        '''.format(self.type, self.id, self.parent_id, self.value.encode('utf-8'), self.attributes).strip() + '\n'
 
 
 def ConstructDOMNodeObj(dom_json, for_hdp=False):
