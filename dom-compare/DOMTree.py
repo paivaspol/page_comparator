@@ -123,7 +123,7 @@ def ConstructDOMTree(root_node_dom_json, for_hdp):
         if 'parentId' in cur_node_json:
             parent_signature = node_signature_map[cur_node_json['parentId']]
         # Node signatures are delimited by SIGNATURE_DELIM
-        node_signature = parent_signature + ConstructSignature(cur_node_json) + SIGNATURE_DELIM
+        node_signature = parent_signature + ConstructSignature(cur_node_json, for_hdp) + SIGNATURE_DELIM
         cur_node = ConstructDOMNodeObj(cur_node_json, node_signature, for_hdp)
         node_signature_map[cur_node.id] = cur_node.signature
 

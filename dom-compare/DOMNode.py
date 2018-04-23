@@ -181,20 +181,26 @@ def ConstructDOMNodeObj(dom_json, node_signature, for_hdp=False):
     return DOMNode(dom_json[NODE_ID], dom_json[NODE_NAME], value, attrs, parent_id, node_signature)
 
 
-def ConstructSignature(node_json):
+def ConstructSignature(node_json, for_hdp):
     '''
     Returns a string that represents the signature of this node.
 
     The signature of a node is defined is <[type]>\[attributes\].
     '''
-    return '<{0}>{1}'.format(node_json[NODE_NAME], str(node_json[NODE_ATTRIBUTES] if NODE_ATTRIBUTES in node_json else []))
+    attrs = SerializeAttributes(node_json[NODE_ATTRIBUTES], for_hdp) if NODE_ATTRIBUTES in node_json else {}
+    sorted_keys = sorted(attrs.iteritems(), key=lambda x: x[0])
+    attrs_list = []
+    for k, v in sorted_keys:
+        attrs_list.append(k)
+        attrs_list.append(v)
+    return '<{0}>{1}'.format(node_json[NODE_NAME], str(attrs_list))
 
 
 def SerializeAttributes(attributes, for_hdp):
     '''
     Returns a map of attributes from the array representation: [ key_1, val_1, key_2, val_2, ..., key_n, val_n ]
     '''
-    attrs_interested = [ 'id', 'class', 'src', 'href' ]
+    attrs_interested = [ 'id', 'class', 'src', 'href', 'js_inserted' ]
     attrs = {}
     for i in range(0, len(attributes), 2):
         key = attributes[i]
