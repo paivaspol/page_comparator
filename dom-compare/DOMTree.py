@@ -3,6 +3,7 @@ from DOMNode import DOMNode, ConstructDOMNodeObj, ConstructDOMNodeFromHtml, Cons
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString
 
+import DOMNode
 import json
 
 # Skip these tags.
@@ -120,11 +121,19 @@ def ConstructDOMTreeFromHtml(html, for_hdp):
     soup = BeautifulSoup(html, 'html5lib')
     nodes_to_process = deque([ (0, soup) ])
     child_to_parent = {}
+    node_signature_map = defaultdict(lambda: '')
+
     while len(nodes_to_process) > 0:
         cur_node_id, cur_node_html = nodes_to_process.popleft()
         parent_id = child_to_parent[cur_node_id] if cur_node_id in child_to_parent else -1
+        parent_signature = ''
+        if parent_id != -1:
+            parent_signature = node_signature_map[parent_id]
+        node_signature = parent_signature + ConstructSignature(cur_node_html.name, cur_node_html.attrs, for_hdp) + SIGNATURE_DELIM
+
         # TODO(vaspol): implement signature.
-        cur_node = ConstructDOMNodeFromHtml(cur_node_html, cur_node_id, parent_id, '')
+        cur_node = ConstructDOMNodeFromHtml(cur_node_html, cur_node_id, parent_id, node_signature)
+        node_signature_map[cur_node.id] = node_signature
 
         # In HDP, we want to ignore all nodes that are not visible.
         if ShouldSkipNode(cur_node, for_hdp):
@@ -174,7 +183,7 @@ def ConstructDOMTree(root_node_dom_json, for_hdp):
         if 'parentId' in cur_node_json:
             parent_signature = node_signature_map[cur_node_json['parentId']]
         # Node signatures are delimited by SIGNATURE_DELIM
-        node_signature = parent_signature + ConstructSignature(cur_node_json, for_hdp) + SIGNATURE_DELIM
+        node_signature = parent_signature + ConstructSignature(cur_node_json[DOMNode.NODE_NAME], cur_node_json[DOMNode.NODE_ATTRIBUTES], for_hdp) + SIGNATURE_DELIM
         cur_node = ConstructDOMNodeObj(cur_node_json, node_signature, for_hdp)
         node_signature_map[cur_node.id] = cur_node.signature
 

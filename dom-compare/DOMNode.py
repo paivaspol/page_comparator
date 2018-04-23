@@ -201,19 +201,23 @@ def ConstructDOMNodeObj(dom_json, node_signature, for_hdp=False):
     return DOMNode(dom_json[NODE_ID], dom_json[NODE_NAME], value, attrs, parent_id, node_signature)
 
 
-def ConstructSignature(node_json, for_hdp):
+def ConstructSignature(node_name, attributes, for_hdp):
     '''
     Returns a string that represents the signature of this node.
 
     The signature of a node is defined is <[type]>\[attributes\].
     '''
-    attrs = SerializeAttributes(node_json[NODE_ATTRIBUTES], for_hdp) if NODE_ATTRIBUTES in node_json else {}
+    attrs = SerializeAttributes(attributes, for_hdp) if type(attributes) is list else attributes
     sorted_keys = sorted(attrs.iteritems(), key=lambda x: x[0])
     attrs_list = []
     for k, v in sorted_keys:
-        attrs_list.append(k)
-        attrs_list.append(v)
-    return '<{0}>{1}'.format(node_json[NODE_NAME], str(attrs_list))
+        attrs_list.append(str(k))
+        if type(v) is list:
+            v = ' '.join(v)
+        attrs_list.append(str(v))
+    if node_name == '[document]':
+        node_name = '#document'
+    return '<{0}>{1}'.format(node_name, str(attrs_list))
 
 
 def SerializeAttributes(attributes, for_hdp):

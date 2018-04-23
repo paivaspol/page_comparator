@@ -47,16 +47,17 @@ class TestDOMTree(unittest.TestCase):
         html = '<html><head><link rel="preload" href="foo.js"></link></head><body><div>Hello world</div></body></html>'
         tree = DOMTree(html)
         expected = [
-                DOMNode(0, '#document', '', {}, -1, ''),
-                DOMNode(1, 'html', '', {}, 0, ''),
-                DOMNode(2, 'head', '', {}, 1, ''),
-                DOMNode(3, 'body', '', {}, 1, ''),
-                DOMNode(4, 'link', '', { 'rel': 'preload', 'href': 'foo.js' }, 2, ''),
-                DOMNode(5, 'div', 'Hello world', {}, 3, ''),
+                DOMNode(0, '#document', '', {}, -1, '<#document>[]|$de|'),
+                DOMNode(1, 'html', '', {}, 0, '<#document>[]|$de|<html>[]|$de|'),
+                DOMNode(2, 'head', '', {}, 1, '<#document>[]|$de|<html>[]|$de|<head>[]|$de|'),
+                DOMNode(3, 'body', '', {}, 1, '<#document>[]|$de|<html>[]|$de|<body>[]|$de|'),
+                DOMNode(4, 'link', '', { 'rel': 'preload', 'href': 'foo.js' }, 2, '<#document>[]|$de|<html>[]|$de|<head>[]|$de|<link>[\'href\', \'foo.js\', \'rel\', \'preload\']|$de|'),
+                DOMNode(5, 'div', 'Hello world', {}, 3, '<#document>[]|$de|<html>[]|$de|<body>[]|$de|<div>[]|$de|'),
         ]
         self.assertEquals(6, tree.size)
         for i, n in enumerate(iter(tree)):
             self.assertEquals(expected[i], n)
+            self.assertEquals(expected[i].signature, n.signature)
 
 
 if __name__ == '__main__':
