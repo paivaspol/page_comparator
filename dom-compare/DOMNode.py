@@ -1,3 +1,5 @@
+import bs4
+
 # JSON Key Constants
 NODE_ID = 'nodeId'
 NODE_NAME = 'nodeName'
@@ -166,6 +168,24 @@ class DOMNode(object):
             attrs: {4}
             signature: {5}
         '''.format(self.type, self.id, self.parent_id, self.value.encode('utf-8'), self.attributes, self.signature).strip() + '\n'
+
+
+def ConstructDOMNodeFromHtml(html, node_id, parent_id, node_signature, for_hdp=False):
+    '''
+    Constructs a DOM Node object from the given HTML from beautiful soup.
+    '''
+    attrs = {}
+    for k, v in html.attrs.iteritems():
+        attrs[k] = ' '.join(v) if type(v) is list else v
+    value = ''
+    contents = html.contents
+    for c in contents:
+        if type(c) is bs4.element.NavigableString:
+            value += c.string
+    node_type = html.name
+    if node_type == '[document]':
+        node_type = '#document'
+    return DOMNode(node_id, node_type, value, attrs, parent_id, node_signature)
 
 
 def ConstructDOMNodeObj(dom_json, node_signature, for_hdp=False):

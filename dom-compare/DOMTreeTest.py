@@ -1,4 +1,5 @@
 from DOMTree import DOMTree, SIGNATURE_DELIM
+from DOMNode import DOMNode
 
 import unittest
 import json
@@ -37,6 +38,25 @@ class TestDOMTree(unittest.TestCase):
         tree = DOMTree(dom_json)
         for i, n in enumerate(iter(tree)):
             self.assertEqual(signatures[i], n.signature)
+
+
+    def test_construct_dom_tree_from_html(self):
+        '''
+        Test constructing the DOM tree from the main HTML.
+        '''
+        html = '<html><head><link rel="preload" href="foo.js"></link></head><body><div>Hello world</div></body></html>'
+        tree = DOMTree(html)
+        expected = [
+                DOMNode(0, '#document', '', {}, -1, ''),
+                DOMNode(1, 'html', '', {}, 0, ''),
+                DOMNode(2, 'head', '', {}, 1, ''),
+                DOMNode(3, 'body', '', {}, 1, ''),
+                DOMNode(4, 'link', '', { 'rel': 'preload', 'href': 'foo.js' }, 2, ''),
+                DOMNode(5, 'div', 'Hello world', {}, 3, ''),
+        ]
+        self.assertEquals(6, tree.size)
+        for i, n in enumerate(iter(tree)):
+            self.assertEquals(expected[i], n)
 
 
 if __name__ == '__main__':

@@ -1,5 +1,7 @@
 from collections import deque, defaultdict
-from DOMNode import DOMNode, ConstructDOMNodeObj, ConstructSignature
+from DOMNode import DOMNode, ConstructDOMNodeObj, ConstructDOMNodeFromHtml, ConstructSignature
+from bs4 import BeautifulSoup
+from bs4.element import NavigableString
 
 import json
 
@@ -12,7 +14,7 @@ class DOMTree(object):
     '''
     Represents a DOM tree. Each DOM Node is represented by the DOMNode object. 
     '''
-    def __init__(self, dom_json, for_hdp=False):
+    def __init__(self, dom, for_hdp=False):
         '''
         Initializes the DOM tree.
         Params:
@@ -25,7 +27,10 @@ class DOMTree(object):
         # the key is the id of the parent and the list are ids the children nodes
         #
         # The root_node_id
-        self.tree, self.root_node, self.size, self._nodes_set = ConstructDOMTree(dom_json, for_hdp)
+        if type(dom) == dict:
+            self.tree, self.root_node, self.size, self._nodes_set = ConstructDOMTree(dom, for_hdp)
+        else:
+            self.tree, self.root_node, self.size, self._nodes_set = ConstructDOMTreeFromHtml(dom, for_hdp)
 
         self.children = deque([ self.root_node ])
 
@@ -102,6 +107,52 @@ class DOMTree(object):
         if node.id in self.tree:
             self.children.extend(self.tree[node.id])
         return node
+
+
+def ConstructDOMTreeFromHtml(html, for_hdp):
+    '''
+    Returns the DOM tree and the ID of the root node.
+    '''
+    next_node_id = 1
+    tree = defaultdict(list)
+    root_node = None
+    node_set = set()
+    soup = BeautifulSoup(html, 'html5lib')
+    nodes_to_process = deque([ (0, soup) ])
+    child_to_parent = {}
+    while len(nodes_to_process) > 0:
+        cur_node_id, cur_node_html = nodes_to_process.popleft()
+        parent_id = child_to_parent[cur_node_id] if cur_node_id in child_to_parent else -1
+        # TODO(vaspol): implement signature.
+        cur_node = ConstructDOMNodeFromHtml(cur_node_html, cur_node_id, parent_id, '')
+
+        # In HDP, we want to ignore all nodes that are not visible.
+        if ShouldSkipNode(cur_node, for_hdp):
+            continue
+
+        # Set the root_node
+        if root_node is None:
+            root_node = cur_node
+
+        if not hasattr(cur_node_html, 'contents'):
+            continue
+
+        for child in cur_node_html.contents:
+            if type(child) is NavigableString:
+                continue
+            nodes_to_process.append((next_node_id, child))
+            child_to_parent[next_node_id] = cur_node_id
+            next_node_id += 1
+
+        node_set.add(cur_node)
+
+        # Populate the tree structure.
+        if parent_id == -1:
+            # This is the root node. Don't put it in.
+            continue
+        tree[parent_id].append(cur_node)
+
+    return tree, root_node, next_node_id, node_set
 
 
 def ConstructDOMTree(root_node_dom_json, for_hdp):
