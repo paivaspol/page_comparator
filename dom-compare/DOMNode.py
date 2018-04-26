@@ -8,6 +8,11 @@ NODE_CHILDREN = 'children'
 NODE_ATTRIBUTES = 'attributes'
 NODE_PARENT_ID = 'parentId'
 
+BEAUTIFULSOUP_TYPE_TO_STR = {
+    bs4.element.Doctype: 'Doctype',
+    bs4.element.Comment: '#comment'
+}
+
 class DOMNode(object):
     '''
     Represents a DOM Node. It holds the node's ID, type, value, and attributes.
@@ -175,14 +180,21 @@ def ConstructDOMNodeFromHtml(html, node_id, parent_id, node_signature, for_hdp=F
     Constructs a DOM Node object from the given HTML from beautiful soup.
     '''
     attrs = {}
-    for k, v in html.attrs.iteritems():
-        attrs[k] = ' '.join(v) if type(v) is list else v
+    if hasattr(html, 'attrs'):
+        for k, v in html.attrs.iteritems():
+            attrs[k] = ' '.join(v) if type(v) is list else v
     value = ''
-    contents = html.contents
+    contents = html.contents if hasattr(html, 'contents') else []
+    print str(type(html)) + ' ' + str(html.name)
+    print len(contents)
     for c in contents:
         if type(c) is bs4.element.NavigableString:
-            value += c.string
-    node_type = html.name
+            value += unicode(c.string).strip()
+    print 'value: ' + value
+
+    # node_type = html.name if type(html) in bs4.element.Doctype else 'Doctype'
+    node_type = html.name if type(html) not in BEAUTIFULSOUP_TYPE_TO_STR else BEAUTIFULSOUP_TYPE_TO_STR[type(html)]
+
     if node_type == '[document]':
         node_type = '#document'
     return DOMNode(node_id, node_type, value, attrs, parent_id, node_signature)
@@ -214,7 +226,7 @@ def ConstructSignature(node_name, attributes, for_hdp):
         attrs_list.append(str(k))
         if type(v) is list:
             v = ' '.join(v)
-        attrs_list.append(str(v))
+        attrs_list.append(unicode(v))
     if node_name == '[document]':
         node_name = '#document'
     return '<{0}>{1}'.format(node_name, str(attrs_list))

@@ -1,14 +1,14 @@
 from argparse import ArgumentParser
 from collections import deque
-from DOMNode import DOMNode, ConstructDOMNodeObj
+from DOMNode import DOMNode 
 from DOMTree import DOMTree
 
 import json
 import utils
 
 def Main():
-    dom_a = utils.GetDOMTree(args.dom_tree_a, args.hdp)
-    dom_b = utils.GetDOMTree(args.dom_tree_b, args.hdp)
+    dom_a = utils.GetDOMTree(args.dom_tree_a, args.hdp, args.raw_html)
+    dom_b = utils.GetDOMTree(args.dom_tree_b, args.hdp, args.raw_html)
 
     # Assume that DOM B is the corrent DOM Tree.
     correct_dom = dom_b
@@ -65,7 +65,9 @@ def Main():
     if args.dump_missing_nodes is not None:
         with open(args.dump_missing_nodes, 'w') as output_file:
             for n in all_missing_nodes:
-                output_file.write(n.signature + '\n')
+                # print '[MISSING] ' + n
+                missing_data = { 'str': str(n), 'signature': n.signature }
+                output_file.write(json.dumps(missing_data) + '\n')
 
 
 def PrintNodeList(node_list, indent=''):
@@ -180,5 +182,6 @@ if __name__ == '__main__':
     parser.add_argument('--dump-common-tree', default=None)
     parser.add_argument('--dump-missing-nodes', default=None)
     parser.add_argument('--debug', default=False, action='store_true')
+    parser.add_argument('--raw-html', default=False, action='store_true')
     args = parser.parse_args()
     Main()

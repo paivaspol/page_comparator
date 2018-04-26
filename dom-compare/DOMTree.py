@@ -1,8 +1,7 @@
 from collections import deque, defaultdict
 from DOMNode import DOMNode, ConstructDOMNodeObj, ConstructDOMNodeFromHtml, ConstructSignature
-from bs4 import BeautifulSoup
-from bs4.element import NavigableString
 
+import bs4
 import DOMNode
 import json
 
@@ -118,10 +117,11 @@ def ConstructDOMTreeFromHtml(html, for_hdp):
     tree = defaultdict(list)
     root_node = None
     node_set = set()
-    soup = BeautifulSoup(html, 'html5lib')
+    soup = bs4.BeautifulSoup(html, 'html5lib')
     nodes_to_process = deque([ (0, soup) ])
     child_to_parent = {}
     node_signature_map = defaultdict(lambda: '')
+    dom_node_count = 0
 
     while len(nodes_to_process) > 0:
         cur_node_id, cur_node_html = nodes_to_process.popleft()
@@ -129,7 +129,9 @@ def ConstructDOMTreeFromHtml(html, for_hdp):
         parent_signature = ''
         if parent_id != -1:
             parent_signature = node_signature_map[parent_id]
-        node_signature = parent_signature + ConstructSignature(cur_node_html.name, cur_node_html.attrs, for_hdp) + SIGNATURE_DELIM
+
+        attrs = cur_node_html.attrs if hasattr(cur_node_html, 'attrs') else {}
+        node_signature = parent_signature + ConstructSignature(cur_node_html.name, attrs, for_hdp) + SIGNATURE_DELIM
 
         # TODO(vaspol): implement signature.
         cur_node = ConstructDOMNodeFromHtml(cur_node_html, cur_node_id, parent_id, node_signature)
@@ -139,19 +141,20 @@ def ConstructDOMTreeFromHtml(html, for_hdp):
         if ShouldSkipNode(cur_node, for_hdp):
             continue
 
+        # Update the count
+        dom_node_count += 1
+
         # Set the root_node
         if root_node is None:
             root_node = cur_node
 
-        if not hasattr(cur_node_html, 'contents'):
-            continue
-
-        for child in cur_node_html.contents:
-            if type(child) is NavigableString:
-                continue
-            nodes_to_process.append((next_node_id, child))
-            child_to_parent[next_node_id] = cur_node_id
-            next_node_id += 1
+        if hasattr(cur_node_html, 'contents'):
+            for child in cur_node_html.contents:
+                if type(child) is bs4.element.NavigableString:
+                    continue
+                nodes_to_process.append((next_node_id, child))
+                child_to_parent[next_node_id] = cur_node_id
+                next_node_id += 1
 
         node_set.add(cur_node)
 
@@ -159,9 +162,10 @@ def ConstructDOMTreeFromHtml(html, for_hdp):
         if parent_id == -1:
             # This is the root node. Don't put it in.
             continue
+
         tree[parent_id].append(cur_node)
 
-    return tree, root_node, next_node_id, node_set
+    return tree, root_node, dom_node_count, node_set
 
 
 def ConstructDOMTree(root_node_dom_json, for_hdp):
@@ -183,7 +187,8 @@ def ConstructDOMTree(root_node_dom_json, for_hdp):
         if 'parentId' in cur_node_json:
             parent_signature = node_signature_map[cur_node_json['parentId']]
         # Node signatures are delimited by SIGNATURE_DELIM
-        node_signature = parent_signature + ConstructSignature(cur_node_json[DOMNode.NODE_NAME], cur_node_json[DOMNode.NODE_ATTRIBUTES], for_hdp) + SIGNATURE_DELIM
+        attrs = cur_node_json[DOMNode.NODE_ATTRIBUTES] if DOMNode.NODE_ATTRIBUTES in cur_node_json else []
+        node_signature = parent_signature + ConstructSignature(cur_node_json[DOMNode.NODE_NAME], attrs, for_hdp) + SIGNATURE_DELIM
         cur_node = ConstructDOMNodeObj(cur_node_json, node_signature, for_hdp)
         node_signature_map[cur_node.id] = cur_node.signature
 
